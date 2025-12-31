@@ -5,7 +5,7 @@ import { QuestList } from './components/QuestList';
 import { CalendarView } from './components/CalendarView';
 import type { Quest } from './types';
 import { triggerConfetti } from './utils/confetti';
-import { saveDailyProgress } from './utils/history';
+import { saveDailyProgress, getLogicalDate } from './utils/history';
 import { Sparkles, Swords, Calendar, ListCheck } from 'lucide-react';
 
 const STORAGE_KEY = 'daily-quests-data-v2';
@@ -32,11 +32,11 @@ function App() {
   });
 
   const [lastVisit, setLastVisit] = useState(() => {
-    return localStorage.getItem(LAST_VISIT_KEY) || new Date().toDateString();
+    return localStorage.getItem(LAST_VISIT_KEY) || getLogicalDate();
   });
 
-  useEffect(() => {
-    const today = new Date().toDateString();
+  const checkAndResetDaily = () => {
+    const today = getLogicalDate();
     if (lastVisit !== today) {
       // Daily Reset
       setQuests(prev => prev.map(q => ({
@@ -47,6 +47,22 @@ function App() {
       setLastVisit(today);
       localStorage.setItem(LAST_VISIT_KEY, today);
     }
+  };
+
+  useEffect(() => {
+    checkAndResetDaily();
+
+    // Check visibility focus to ensure reset happens if app stays open overnight
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') checkAndResetDaily();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = setInterval(checkAndResetDaily, 60000); // Check every minute
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
   }, [lastVisit]);
 
   useEffect(() => {
@@ -179,7 +195,7 @@ function App() {
           </div>
 
           <footer className="mt-8 text-center text-slate-600 text-xs pb-4">
-            <p>Resets daily at midnight local time.</p>
+            <p>Resets daily at 3:00 AM.</p>
           </footer>
         </main>
       </div>

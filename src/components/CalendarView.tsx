@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { getHistory } from '../utils/history';
+import { getHistory, getLogicalDate } from '../utils/history';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const CalendarView: React.FC = () => {
     const [currentDate, setCurrentDate] = React.useState(new Date());
     const history = getHistory();
+    const logicalToday = getLogicalDate();
 
     // Get days in month
     const getDaysInMonth = (date: Date) => {
@@ -57,8 +58,8 @@ export const CalendarView: React.FC = () => {
                 }
             }
 
-            // Highlight Today
-            const isToday = dateStr === new Date().toDateString();
+            // Highlight Today (Logical)
+            const isToday = dateStr === logicalToday;
             const todayRing = isToday ? 'ring-2 ring-white' : '';
 
             slots.push(
