@@ -12,12 +12,20 @@ interface QuestListProps {
 
 export const QuestList: React.FC<QuestListProps> = ({ quests, onToggle, onUpdateProgress, onDelete, onAdd }) => {
     const [newQuest, setNewQuest] = React.useState('');
+    const [itemToDelete, setItemToDelete] = React.useState<string | null>(null);
 
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
         if (newQuest.trim()) {
             onAdd(newQuest);
             setNewQuest('');
+        }
+    };
+
+    const confirmDelete = () => {
+        if (itemToDelete) {
+            onDelete(itemToDelete);
+            setItemToDelete(null);
         }
     };
 
@@ -120,7 +128,7 @@ export const QuestList: React.FC<QuestListProps> = ({ quests, onToggle, onUpdate
                         </div>
 
                         <button
-                            onClick={() => onDelete(quest.id)}
+                            onClick={() => setItemToDelete(quest.id)}
                             className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-2 rounded-lg hover:bg-white/5 self-start mt-1"
                         >
                             <Trash2 size={18} />
@@ -128,6 +136,36 @@ export const QuestList: React.FC<QuestListProps> = ({ quests, onToggle, onUpdate
                     </div>
                 ))}
             </div>
+
+            {/* Confirmation Modal */}
+            {itemToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setItemToDelete(null)}
+                    />
+                    <div className="relative bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl max-w-sm w-full ring-1 ring-white/10 animate-fade-in-up">
+                        <h3 className="text-xl font-bold text-white mb-2">Delete Quest?</h3>
+                        <p className="text-slate-400 mb-6">
+                            Are you sure you want to remove this quest? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setItemToDelete(null)}
+                                className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all font-bold"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

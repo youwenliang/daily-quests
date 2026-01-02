@@ -14,12 +14,13 @@ const LAST_VISIT_KEY = 'daily-quests-last-visit';
 function App() {
   const [view, setView] = useState<'list' | 'calendar'>('list');
 
+  // Hardened Logic: Check for reset during initialization to prevent flash of old state
   const [quests, setQuests] = useState<Quest[]>(() => {
+    const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
+    const today = getLogicalDate();
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
 
-    // Default quests based on User's request
-    return [
+    let parsedQuests = saved ? JSON.parse(saved) : [
       { id: '1', text: '臉部保養與運動', type: 'counter', completed: false, current: 0, target: 2, unit: 'times' },
       { id: '2', text: '走路 8000 步', type: 'counter', completed: false, current: 0, target: 8000, unit: 'steps' },
       { id: '3', text: '晚上專注一小時', type: 'boolean', completed: false },
@@ -29,16 +30,33 @@ function App() {
       { id: '7', text: '每天閱讀', type: 'boolean', completed: false },
       { id: '8', text: '每天十二點前上床', type: 'boolean', completed: false },
     ];
+
+    // If dates mismatch (and we have visited before), force reset immediately
+    if (lastVisit && lastVisit !== today) {
+      parsedQuests = parsedQuests.map((q: Quest) => ({
+        ...q,
+        completed: false,
+        current: q.type === 'counter' ? 0 : undefined
+      }));
+    }
+
+    return parsedQuests;
   });
 
+  // Initialize lastVisit to today if we just reset, otherwise trust storage
   const [lastVisit, setLastVisit] = useState(() => {
-    return localStorage.getItem(LAST_VISIT_KEY) || getLogicalDate();
+    const stored = localStorage.getItem(LAST_VISIT_KEY);
+    const today = getLogicalDate();
+    if (stored && stored !== today) {
+      return today; // We just reset in the quests initializer, so update this too
+    }
+    return stored || today;
   });
 
+  // Also keep the Effect for runtime updates (e.g. if app stays open past 3AM)
   const checkAndResetDaily = () => {
     const today = getLogicalDate();
     if (lastVisit !== today) {
-      // Daily Reset
       setQuests(prev => prev.map(q => ({
         ...q,
         completed: false,
@@ -52,12 +70,11 @@ function App() {
   useEffect(() => {
     checkAndResetDaily();
 
-    // Check visibility focus to ensure reset happens if app stays open overnight
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') checkAndResetDaily();
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    const interval = setInterval(checkAndResetDaily, 60000); // Check every minute
+    const interval = setInterval(checkAndResetDaily, 60000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -65,9 +82,11 @@ function App() {
     };
   }, [lastVisit]);
 
+  // Sync state to storage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quests));
-  }, [quests]);
+    localStorage.setItem(LAST_VISIT_KEY, lastVisit); // Ensure lastVisit is synced
+  }, [quests, lastVisit]);
 
   const progress = quests.length > 0
     ? (quests.filter(q => q.completed).length / quests.length) * 100
@@ -123,6 +142,10 @@ function App() {
   const deleteQuest = (id: string) => {
     setQuests(quests.filter(q => q.id !== id));
   };
+
+  // DEBUG INFO to help diagnose issues
+  const debugDate = new Date();
+  const debugLogical = getLogicalDate();
 
   return (
     <div className="fixed inset-0 bg-slate-900 text-slate-100 font-sans selection:bg-violet-500/30 overflow-hidden flex flex-col">
@@ -194,8 +217,12 @@ function App() {
             )}
           </div>
 
-          <footer className="mt-8 text-center text-slate-600 text-xs pb-4">
+          <footer className="mt-8 text-center text-slate-600 text-[10px] pb-4 font-mono opacity-50 hover:opacity-100 transition-opacity">
             <p>Resets daily at 3:00 AM.</p>
+            <div className="mt-2 text-slate-700">
+              <p>Now: {debugDate.toLocaleTimeString()} | Logic: {debugLogical}</p>
+              <p>Last Visit: {lastVisit}</p>
+            </div>
           </footer>
         </main>
       </div>
